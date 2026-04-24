@@ -1,6 +1,9 @@
 import { PrismaClient } from "@prisma/client";
 import { ResearchPaper } from "../../core/entities/ResearchPaper.entity.js";
-import { IResearchPaperRepository } from "../../core/interfaces/IResearchPaperRepository.js";
+import {
+  IResearchPaperRepository,
+  ResearchCollaboratorAccess,
+} from "../../core/interfaces/IResearchPaperRepository.js";
 import { CreatePaperDTO } from "../../application/dtos/research/CreatePaperDTO.js";
 import { UpdatePaperDTO } from "../../application/dtos/research/UpdatePaperDTO.js";
 
@@ -30,7 +33,6 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
         folderId: data.folderId,
         visibility: data.visibility ?? "PRIVATE",
         authorId,
-
         tags: data.tagIds?.length
           ? {
               create: data.tagIds.map((tagId) => ({
@@ -44,38 +46,6 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
     });
 
     return this.toEntity(paper);
-  }
-
-  async update(id: string, data: UpdatePaperDTO): Promise<ResearchPaper> {
-    const paper = await this.prisma.researchPaper.update({
-      where: { id },
-      data: {
-        title: data.title,
-        abstract: data.abstract,
-        content: data.content,
-        folderId: data.folderId,
-        visibility: data.visibility,
-
-        tags: data.tagIds
-          ? {
-              deleteMany: {},
-              create: data.tagIds.map((tagId) => ({
-                tag: {
-                  connect: { id: tagId },
-                },
-              })),
-            }
-          : undefined,
-      },
-    });
-
-    return this.toEntity(paper);
-  }
-
-  async delete(id: string): Promise<void> {
-    await this.prisma.researchPaper.delete({
-      where: { id },
-    });
   }
 
   async findById(id: string): Promise<ResearchPaper | null> {
@@ -111,5 +81,50 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
     });
 
     return papers.map((paper) => this.toEntity(paper));
+  }
+
+  async findCollaboratorByPaperAndUser(
+    paperId: string,
+    userId: string,
+  ): Promise<ResearchCollaboratorAccess | null> {
+    return this.prisma.researchCollaborator.findUnique({
+      where: {
+        paperId_userId: {
+          paperId,
+          userId,
+        },
+      },
+    });
+  }
+
+  async update(id: string, data: UpdatePaperDTO): Promise<ResearchPaper> {
+    const paper = await this.prisma.researchPaper.update({
+      where: { id },
+      data: {
+        title: data.title,
+        abstract: data.abstract,
+        content: data.content,
+        folderId: data.folderId,
+        visibility: data.visibility,
+        tags: data.tagIds
+          ? {
+              deleteMany: {},
+              create: data.tagIds.map((tagId) => ({
+                tag: {
+                  connect: { id: tagId },
+                },
+              })),
+            }
+          : undefined,
+      },
+    });
+
+    return this.toEntity(paper);
+  }
+
+  async delete(id: string): Promise<void> {
+    await this.prisma.researchPaper.delete({
+      where: { id },
+    });
   }
 }
