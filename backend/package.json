@@ -4,7 +4,13 @@
   "description": "",
   "main": "vitest.config.js",
   "scripts": {
-    "dev": "tsc --b && node dist/index.js"
+    "dev": "tsc --b && node dist/index.js",
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f backend",
+    "docker:restart": "docker compose restart backend",
+    "prisma:migrate": "docker compose exec backend npx prisma migrate dev",
+    "prisma:status": "docker compose exec backend npx prisma migrate status"
   },
   "keywords": [],
   "author": "",
