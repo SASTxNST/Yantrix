@@ -155,3 +155,5 @@ Yantrix/
 # License
 
 MIT
+
+# Yantrix by SAST
