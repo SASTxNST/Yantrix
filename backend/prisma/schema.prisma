@@ -3,6 +3,7 @@
 
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,6 +11,19 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum ResearchVisibility {
+  PRIVATE
+  SHARED
+  PUBLIC
+}
+
+enum CollaboratorRole {
+  OWNER
+  EDITOR
+  VIEWER
+  COMMENTER
 }
 
 model User {
@@ -21,4 +35,115 @@ model User {
   password  String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  researchFolders        ResearchFolder[]        @relation("ResearchFolderOwner")
+  researchPapers         ResearchPaper[]         @relation("ResearchPaperAuthor")
+  researchCollaborations ResearchCollaborator[]   @relation("ResearchCollaborations")
+  researchVersions       ResearchVersionHistory[] @relation("ResearchVersionCreatedBy")
+}
+
+model ResearchFolder {
+  id          String  @id @default(cuid())
+  name        String
+  description String?
+
+  ownerId String
+  owner   User   @relation("ResearchFolderOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  papers ResearchPaper[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ownerId])
+}
+
+model ResearchPaper {
+  id         String             @id @default(cuid())
+  title      String
+  abstract   String?
+  content    String?
+  visibility ResearchVisibility @default(PRIVATE)
+
+  authorId String
+  author   User   @relation("ResearchPaperAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  folderId String?
+  folder   ResearchFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
+
+  collaborators ResearchCollaborator[]
+  tags          ResearchPaperTag[]
+  versions      ResearchVersionHistory[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([authorId])
+  @@index([folderId])
+  @@index([visibility])
+}
+
+model ResearchCollaborator {
+  id String @id @default(cuid())
+
+  paperId String
+  paper   ResearchPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  userId String
+  user   User   @relation("ResearchCollaborations", fields: [userId], references: [id], onDelete: Cascade)
+
+  role CollaboratorRole @default(VIEWER)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([paperId, userId])
+  @@index([paperId])
+  @@index([userId])
+}
+
+model ResearchTag {
+  id   String @id @default(cuid())
+  name String @unique
+
+  papers ResearchPaperTag[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ResearchPaperTag {
+  id String @id @default(cuid())
+
+  paperId String
+  paper   ResearchPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  tagId String
+  tag   ResearchTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([paperId, tagId])
+  @@index([paperId])
+  @@index([tagId])
+}
+
+model ResearchVersionHistory {
+  id String @id @default(cuid())
+
+  paperId String
+  paper   ResearchPaper @relation(fields: [paperId], references: [id], onDelete: Cascade)
+
+  title    String
+  abstract String?
+  content  String?
+
+  version Int
+
+  createdBy String
+  user      User   @relation("ResearchVersionCreatedBy", fields: [createdBy], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([paperId, version])
+  @@index([paperId])
+  @@index([createdBy])
 }
