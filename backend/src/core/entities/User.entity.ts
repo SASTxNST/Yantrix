@@ -1,4 +1,3 @@
-import { Role } from "@prisma/client/wasm";
 
 export class UserEntity {
   constructor(
@@ -57,5 +56,5 @@ export class UserEntity {
 
 export type UserRole = {
     user_id: string;
-    role: Role;
+  
 };

@@ -4,7 +4,6 @@ import type {
   RegisterUserDto,
   UpdateUserDto,
 } from "../../application/dtos/User.dto.js";
-import { Role } from "@prisma/client";
 
 export interface IUserRepository {
   findById(id: string): Promise<UserEntity | null>;
@@ -23,5 +22,4 @@ export interface IUserRepository {
     phoneNumber: string
   ): Promise<{ user: UserEntity; hashedPassword: string } | null>;
   getRefreshTokenById(id: string): Promise<string | null>;
-  assignRole(user_id: string, role: Role): Promise<UserRole | null>;
 }

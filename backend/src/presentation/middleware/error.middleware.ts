@@ -1,5 +1,8 @@
 import type { NextFunction, Request, Response } from "express";
-import { Prisma } from "@prisma/client";
+import {
+  PrismaClientKnownRequestError,
+  PrismaClientValidationError,
+} from "@prisma/client/runtime/library";
 import { AppError } from "../../shared/error/AppError.js";
 
 export const errorHandler = (
@@ -19,7 +22,7 @@ export const errorHandler = (
     return;
   }
 
-  if (error instanceof Prisma.PrismaClientKnownRequestError) {
+  if (error instanceof PrismaClientKnownRequestError) {
     if (error.code === "P2002") {
       res.status(409).json({
         success: false,
@@ -38,7 +41,7 @@ export const errorHandler = (
     }
   }
 
-  if (error instanceof Prisma.PrismaClientValidationError) {
+  if (error instanceof PrismaClientValidationError) {
     res.status(400).json({
       success: false,
       error: "Invalid data provided",
