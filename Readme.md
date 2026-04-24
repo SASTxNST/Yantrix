@@ -12,7 +12,7 @@ This repository contains the full-stack Yantrix development environment:
 
 ---
 
-# Quick Start
+# Quick Start for first time Yantrix contributers
 
 ```bash
 git clone <repo-url>
