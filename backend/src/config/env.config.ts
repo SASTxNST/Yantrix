@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 import type { Config } from "../shared/types/config/index.js";
-import {StringValue} from "ms";
+import { StringValue } from "ms";
 
 // Load environment variables
 dotenv.config();
@@ -15,7 +15,10 @@ export const config: Config = {
 
   // CORS
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin:
+      process.env.CORS_ORIGIN ||
+      process.env.FRONTEND_URL ||
+      "http://localhost:5173",
   },
 
   // Cloudinary
@@ -27,27 +30,33 @@ export const config: Config = {
 
   // JWT
   jwt: {
-      secret: process.env.JWT_SECRET!,
-      accessTokenExpiry: (process.env.ACCESS_TOKEN_EXPIRY as StringValue) || "15m",
-      refreshTokenExpiry: (process.env.REFRESH_TOKEN_EXPIRY as StringValue) || "7d",
-  }
+    secret: process.env.JWT_SECRET!,
+    accessTokenExpiry:
+      (process.env.ACCESS_TOKEN_EXPIRY as StringValue) || "15m",
+    refreshTokenExpiry:
+      (process.env.REFRESH_TOKEN_EXPIRY as StringValue) || "7d",
+  },
 };
 
 // Validate required environment variables
 export function validateEnv() {
   const requiredEnvVars = [
-  "DATABASE_URL",
-  "CLOUDINARY_CLOUD_NAME",
-  "CLOUDINARY_API_KEY",
-  "CLOUDINARY_API_SECRET",
-  "JWT_SECRET",
-  "ACCESS_TOKEN_EXPIRY",
-  "REFRESH_TOKEN_EXPIRY",
-];
+    "DATABASE_URL",
+    "CLOUDINARY_CLOUD_NAME",
+    "CLOUDINARY_API_KEY",
+    "CLOUDINARY_API_SECRET",
+    "JWT_SECRET",
+    "ACCESS_TOKEN_EXPIRY",
+    "REFRESH_TOKEN_EXPIRY",
+  ];
+
   for (const envVar of requiredEnvVars) {
     if (!process.env[envVar]) {
-      throw new Error(`Missing required environment variable: ${envVar}`);
+      throw new Error(
+        `Missing required environment variable: ${envVar}`,
+      );
     }
   }
 }
+
 validateEnv();

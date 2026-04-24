@@ -8,6 +8,5 @@ const userController = new UserController();
 
 // Account update Routes
 router.patch('/update-profile', authenticate, userController.updateProfile);
-// router.patch('/upload-govt-id', authenticate, upload.single('govt_id'), userController.uploadGovtId);
 
 export default router;

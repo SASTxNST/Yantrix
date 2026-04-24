@@ -1,0 +1,47 @@
+:root {
+  --yantrix-bg: #030712;
+  --yantrix-bg-soft: #07111f;
+  --yantrix-card: rgba(15, 23, 42, 0.72);
+  --yantrix-border: rgba(148, 163, 184, 0.18);
+
+  --yantrix-primary: #38bdf8;
+  --yantrix-secondary: #8b5cf6;
+  --yantrix-accent: #22d3ee;
+
+  --yantrix-text: #f8fafc;
+  --yantrix-muted: #94a3b8;
+}
+
+body {
+  margin: 0;
+  background:
+    radial-gradient(circle at top left, rgba(56, 189, 248, 0.18), transparent 30%),
+    radial-gradient(circle at top right, rgba(139, 92, 246, 0.2), transparent 32%),
+    linear-gradient(180deg, #020617 0%, #030712 45%, #020617 100%);
+  color: var(--yantrix-text);
+  min-height: 100vh;
+}
+
+.yantrix-glass {
+  background: var(--yantrix-card);
+  border: 1px solid var(--yantrix-border);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.35);
+}
+
+.yantrix-gradient-text {
+  background: linear-gradient(135deg, #38bdf8, #a78bfa, #22d3ee);
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+.yantrix-btn-primary {
+  background: linear-gradient(135deg, #38bdf8, #8b5cf6);
+  color: white;
+  transition: 0.2s ease;
+}
+
+.yantrix-btn-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 16px 40px rgba(56, 189, 248, 0.28);
+}

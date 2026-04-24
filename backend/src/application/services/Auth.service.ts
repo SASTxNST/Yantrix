@@ -33,9 +33,9 @@ export class AuthService {
       }
     }
 
-    if (registerUserDto.phone_number) {
+    if (registerUserDto.phone) {
       const phoneExists = await this.userRepository.findByPhone(
-        registerUserDto.phone_number,
+        registerUserDto.phone,
       );
 
       if (phoneExists) {
@@ -98,14 +98,14 @@ export class AuthService {
     user: UserEntity;
     tokens: { accessToken: string; refreshToken: string };
   }> {
-    const { email, phone_number, password } = loginUserDto;
+    const { email, phone, password } = loginUserDto;
 
     let result: { user: UserEntity; hashedPassword: string } | null = null;
 
     if (email) {
       result = await this.userRepository.findAuthByEmail(email);
-    } else if (phone_number) {
-      result = await this.userRepository.findAuthByPhone(phone_number);
+    } else if (phone) {
+      result = await this.userRepository.findAuthByPhone(phone);
     }
 
     if (!result) {

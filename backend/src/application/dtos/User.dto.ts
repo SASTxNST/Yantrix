@@ -1,24 +1,22 @@
 export interface RegisterUserDto {
-  first_name: string;
-  last_name?: string;
-  email?: string;
-  phone_number?: string;
-  address?: string;
+  name: string;
+  email: string;
+  phone: string;
   password: string;
+  githubId?: string;
 }
 
 export interface LoginUserDto {
   email?: string;
-  phone_number?: string;
+  phone?: string;
   password: string;
 }
 
 export interface UpdateUserDto {
-  first_name?: string;
-  last_name?: string;
+  name?: string;
   email?: string;
-  phone_number?: string;
-  address?: string;
+  phone?: string;
+  githubId?: string | null;
   password?: string;
   refreshToken?: string;
 }

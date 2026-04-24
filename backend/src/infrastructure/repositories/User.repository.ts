@@ -58,13 +58,13 @@ export class UserRepository implements IUserRepository {
   }
 
   async createUser(data: RegisterUserDto): Promise<UserEntity | null> {
-    const fullName = [data.first_name, data.last_name].filter(Boolean).join(" ");
+    const fullName = [data.name].filter(Boolean).join(" ");
 
     const newUser = await this.prisma.user.create({
       data: {
         name: fullName,
         email: data.email ?? "",
-        phone: data.phone_number ?? "",
+        phone: data.phone ?? "",
         password: data.password,
       },
     });
@@ -73,14 +73,14 @@ export class UserRepository implements IUserRepository {
   }
 
   async update(id: string, data: UpdateUserDto): Promise<UserEntity | null> {
-    const fullName = [data.first_name, data.last_name].filter(Boolean).join(" ");
+    const fullName = [data.name].filter(Boolean).join(" ");
 
     const user = await this.prisma.user.update({
       where: { id },
       data: {
         ...(fullName && { name: fullName }),
         ...(data.email && { email: data.email }),
-        ...(data.phone_number && { phone: data.phone_number }),
+        ...(data.phone && { phone: data.phone }),
       },
     });
 

@@ -1,0 +1,30 @@
+{
+  "name": "yantrix",
+  "version": "1.0.0",
+  "description": "Backend service for Yantrix, built with Node.js, TypeScript, Express, Prisma, and PostgreSQL.",
+  "main": "index.js",
+
+    
+  "scripts": {
+    "docker:up": "docker compose up -d --build",
+    "docker:down": "docker compose down",
+    "docker:logs": "docker compose logs -f",
+    "docker:logs:frontend": "docker compose logs -f frontend",
+    "docker:logs:backend": "docker compose logs -f backend",
+    "docker:restart": "docker compose restart",
+    "docker:ps": "docker compose ps"
+  },
+
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/KatalKavya96/Yantrix.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/KatalKavya96/Yantrix/issues"
+  },
+  "homepage": "https://github.com/KatalKavya96/Yantrix#readme"
+}
