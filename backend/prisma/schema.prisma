@@ -15,8 +15,9 @@ datasource db {
 
 enum ResearchVisibility {
   PRIVATE
-  SHARED
   PUBLIC
+  TEAM_ONLY
+  SHARED_LINK
 }
 
 enum CollaboratorRole {
@@ -65,8 +66,10 @@ model ResearchPaper {
   content    String?
   visibility ResearchVisibility @default(PRIVATE)
 
+  shareToken String? @unique
+
   authorId String
-  author   User   @relation("ResearchPaperAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  author   User @relation("ResearchPaperAuthor", fields: [authorId], references: [id], onDelete: Cascade)
 
   folderId String?
   folder   ResearchFolder? @relation(fields: [folderId], references: [id], onDelete: SetNull)
@@ -81,6 +84,7 @@ model ResearchPaper {
   @@index([authorId])
   @@index([folderId])
   @@index([visibility])
+  @@index([shareToken])
 }
 
 model ResearchCollaborator {
