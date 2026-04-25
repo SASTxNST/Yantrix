@@ -14,6 +14,7 @@ import {
   Lock,
   Globe,
   Users,
+  LayoutTemplate,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -50,6 +51,325 @@ type SavePaperPayload = {
   visibility: PaperVisibility;
 };
 
+type TemplateKey = "ieee" | "arxiv" | "thesis" | "mission" | "technical";
+
+const researchTemplates: Record<
+  TemplateKey,
+  {
+    label: string;
+    description: string;
+    title: string;
+    abstract: string;
+    content: string;
+  }
+> = {
+  ieee: {
+    label: "IEEE Paper",
+    description: "Structured academic research paper format.",
+    title: "IEEE Research Paper",
+    abstract:
+      "Write a concise summary of the problem, methodology, results, and conclusion.",
+    content: `# IEEE Research Paper Title
+
+## Abstract
+
+Write a concise summary of the problem, methodology, results, and conclusion.
+
+## Keywords
+
+keyword one, keyword two, keyword three
+
+## I. Introduction
+
+Introduce the research problem, motivation, background, and contribution.
+
+## II. Related Work
+
+Discuss previous work, existing methods, and research gaps.
+
+## III. Methodology
+
+Explain the proposed approach, system design, algorithms, and workflow.
+
+## IV. Experimental Setup
+
+Describe datasets, tools, hardware, software, and evaluation metrics.
+
+## V. Results and Discussion
+
+Present results, charts, comparisons, observations, and analysis.
+
+Example equation:
+
+$$
+E = mc^2
+$$
+
+## VI. Conclusion
+
+Summarize findings, limitations, and future scope.
+
+## References
+
+[1] Add reference here.`,
+  },
+
+  arxiv: {
+    label: "arXiv Format",
+    description: "Preprint-style research format.",
+    title: "arXiv Research Paper",
+    abstract:
+      "Provide a clear abstract describing the research contribution and findings.",
+    content: `# arXiv Research Paper Title
+
+## Abstract
+
+Provide a clear abstract describing the research contribution and findings.
+
+## 1. Introduction
+
+Explain the problem, motivation, and main contribution.
+
+## 2. Background
+
+Explain required concepts, theory, and domain context.
+
+## 3. Related Work
+
+Compare existing research and identify gaps.
+
+## 4. Method
+
+Describe the proposed method in detail.
+
+## 5. Experiments
+
+Describe datasets, baselines, experimental settings, and metrics.
+
+## 6. Results
+
+Present key findings and analysis.
+
+## 7. Limitations
+
+Discuss limitations and possible failure cases.
+
+## 8. Conclusion
+
+Summarize contribution and future directions.
+
+## References
+
+Add references here.`,
+  },
+
+  thesis: {
+    label: "Thesis",
+    description: "Long-form academic thesis structure.",
+    title: "Thesis Document",
+    abstract:
+      "Summarize the research problem, objectives, methodology, results, and contribution.",
+    content: `# Thesis Title
+
+## Declaration
+
+Add declaration here.
+
+## Acknowledgements
+
+Add acknowledgements here.
+
+## Abstract
+
+Summarize the research problem, objectives, methodology, results, and contribution.
+
+## Chapter 1: Introduction
+
+### 1.1 Background
+
+### 1.2 Problem Statement
+
+### 1.3 Objectives
+
+### 1.4 Scope of Work
+
+## Chapter 2: Literature Review
+
+Discuss existing work and research gaps.
+
+## Chapter 3: Methodology
+
+Explain research design, methods, tools, and process.
+
+## Chapter 4: Implementation
+
+Describe system implementation and technical details.
+
+## Chapter 5: Results and Analysis
+
+Present results, observations, and evaluation.
+
+## Chapter 6: Conclusion and Future Work
+
+Summarize the thesis and future improvements.
+
+## References
+
+Add references here.
+
+## Appendices
+
+Add appendix material here.`,
+  },
+
+  mission: {
+    label: "Mission Report",
+    description: "Best for satellite, robotics, and space missions.",
+    title: "Mission Report",
+    abstract:
+      "Summarize the mission objective, system design, execution, findings, and outcome.",
+    content: `# Mission Report
+
+## Mission Overview
+
+Describe the mission, background, and purpose.
+
+## Mission Objectives
+
+- Objective 1
+- Objective 2
+- Objective 3
+
+## System Architecture
+
+Explain the full system architecture.
+
+## Payload Description
+
+Describe payload, sensors, modules, and mission role.
+
+## Hardware Components
+
+List and explain hardware components.
+
+## Software Components
+
+Describe software stack, firmware, dashboard, and backend systems.
+
+## Communication System
+
+Explain transmission, receiving, protocols, and data flow.
+
+## Test Procedure
+
+Describe testing stages and validation process.
+
+## Observations
+
+Record mission observations.
+
+## Data Collected
+
+Describe collected data and its meaning.
+
+## Results
+
+Explain results and performance.
+
+## Challenges Faced
+
+Mention technical and operational challenges.
+
+## Conclusion
+
+Summarize mission outcome.
+
+## Future Improvements
+
+Mention next version improvements.`,
+  },
+
+  technical: {
+    label: "Technical Documentation",
+    description: "For software, APIs, systems, and engineering docs.",
+    title: "Technical Documentation",
+    abstract:
+      "Summarize the system, architecture, implementation details, and usage.",
+    content: `# Technical Documentation
+
+## Overview
+
+Explain what this system/project does.
+
+## Problem Statement
+
+Describe the problem being solved.
+
+## System Architecture
+
+Explain architecture, modules, and data flow.
+
+## Tech Stack
+
+- Frontend:
+- Backend:
+- Database:
+- Deployment:
+
+## Installation
+
+\`\`\`bash
+npm install
+\`\`\`
+
+## Environment Variables
+
+\`\`\`env
+DATABASE_URL=
+PORT=
+JWT_SECRET=
+\`\`\`
+
+## API Documentation
+
+### Endpoint Name
+
+\`\`\`http
+GET /api/example
+\`\`\`
+
+## Database Schema
+
+Explain main database models and relations.
+
+## Core Modules
+
+Describe important modules and responsibilities.
+
+## Workflow
+
+Explain user/system workflow step by step.
+
+## Testing
+
+Explain test strategy and commands.
+
+## Deployment
+
+Explain deployment process.
+
+## Limitations
+
+Mention current limitations.
+
+## Future Scope
+
+Mention planned improvements.`,
+  },
+};
+
+const featuredTemplateKeys: TemplateKey[] = ["ieee", "mission", "technical"];
+
 function mapApiPaperToPaper(paper: ApiResearchPaper): Paper {
   return {
     id: paper.id,
@@ -74,6 +394,9 @@ export default function ResearchVaultPage() {
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
   const [pageMessage, setPageMessage] = useState("");
+  const [selectedTemplateKey, setSelectedTemplateKey] =
+    useState<TemplateKey | null>(null);
+  const [showTemplatesSection, setShowTemplatesSection] = useState(false);
 
   const fetchPapers = async () => {
     try {
@@ -94,12 +417,21 @@ export default function ResearchVaultPage() {
 
   const openNewPaperEditor = () => {
     setPageMessage("");
+    setSelectedTemplateKey(null);
+    setActivePaper(null);
+    setIsEditorOpen(true);
+  };
+
+  const openTemplateEditor = (templateKey: TemplateKey) => {
+    setPageMessage("");
+    setSelectedTemplateKey(templateKey);
     setActivePaper(null);
     setIsEditorOpen(true);
   };
 
   const openExistingPaper = (paper: Paper) => {
     setPageMessage("");
+    setSelectedTemplateKey(null);
     setActivePaper(paper);
     setIsEditorOpen(true);
   };
@@ -136,6 +468,7 @@ export default function ResearchVaultPage() {
       const mappedPaper = mapApiPaperToPaper(savedPaper);
 
       setActivePaper(mappedPaper);
+      setSelectedTemplateKey(null);
       await fetchPapers();
 
       if (!options?.silent) {
@@ -181,8 +514,18 @@ export default function ResearchVaultPage() {
             ].map((item) => (
               <button
                 key={item}
+                onClick={() => {
+                  if (item === "Templates") {
+                    setShowTemplatesSection(true);
+                  }
+
+                  if (item === "Research Vault") {
+                    setShowTemplatesSection(false);
+                  }
+                }}
                 className={`w-full rounded-xl px-3 py-2 text-left transition ${
-                  item === "Research Vault"
+                  (item === "Research Vault" && !showTemplatesSection) ||
+                  (item === "Templates" && showTemplatesSection)
                     ? "bg-indigo-600/20 text-white"
                     : "hover:bg-white/5"
                 }`}
@@ -202,7 +545,7 @@ export default function ResearchVaultPage() {
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
-                  placeholder="Search papers..."
+                  placeholder="Search papers, templates, datasets..."
                   className="w-full rounded-xl border border-white/10 bg-[#0f1723] px-11 py-3 text-sm outline-none"
                 />
               </div>
@@ -217,7 +560,16 @@ export default function ResearchVaultPage() {
             </div>
 
             <div className="mb-6 flex items-center justify-between">
-              <h2 className="text-3xl font-bold">Research Vault</h2>
+              <div>
+                <h2 className="text-3xl font-bold">
+                  {showTemplatesSection ? "Research Templates" : "Research Vault"}
+                </h2>
+                <p className="mt-2 text-sm text-slate-400">
+                  {showTemplatesSection
+                    ? "Start faster with structured formats for papers, missions, thesis, and documentation."
+                    : "Create, manage, and autosave your research papers."}
+                </p>
+              </div>
 
               {pageMessage && (
                 <p className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm text-slate-300">
@@ -226,82 +578,153 @@ export default function ResearchVaultPage() {
               )}
             </div>
 
-            {loading ? (
-              <div className="rounded-2xl border border-white/10 bg-[#101823] p-10 text-center text-slate-400">
-                Loading papers...
-              </div>
-            ) : papers.length === 0 ? (
-              <div className="rounded-2xl border border-white/10 bg-[#101823] p-10 text-center">
-                <p className="text-lg font-semibold">No papers yet</p>
-                <p className="mt-2 text-sm text-slate-400">
-                  Create your first research paper.
-                </p>
+            {showTemplatesSection ? (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {(Object.keys(researchTemplates) as TemplateKey[]).map((key) => {
+                  const template = researchTemplates[key];
 
-                <button
-                  onClick={openNewPaperEditor}
-                  className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold hover:bg-indigo-500"
-                >
-                  Create Paper
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {papers.map((paper) => (
-                  <div
-                    key={paper.id}
-                    className="rounded-xl border border-white/10 bg-[#101823] p-4"
-                  >
-                    <div className="flex items-center justify-between">
-                      <button
-                        onClick={() => openExistingPaper(paper)}
-                        className="flex flex-1 items-center gap-4 text-left"
-                      >
-                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                          <FileText size={22} />
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => openTemplateEditor(key)}
+                      className="rounded-2xl border border-white/10 bg-[#101823] p-5 text-left transition hover:border-indigo-500/60 hover:bg-[#121d2b]"
+                    >
+                      <div className="flex items-start gap-4">
+                        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                          <LayoutTemplate size={22} />
                         </div>
 
                         <div>
-                          <h3 className="font-semibold">{paper.title}</h3>
-                          <p className="text-xs text-slate-400">
-                            {paper.updatedAt}
+                          <h3 className="text-lg font-semibold">
+                            {template.label}
+                          </h3>
+                          <p className="mt-2 text-sm text-slate-400">
+                            {template.description}
                           </p>
+                          <p className="mt-4 text-xs text-indigo-300">
+                            Use this template
+                          </p>
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <>
+                <div className="mb-8">
+                  <div className="mb-4 flex items-center justify-between">
+                    <h3 className="text-lg font-semibold">Featured Templates</h3>
+                    <button
+                      onClick={() => setShowTemplatesSection(true)}
+                      className="text-sm text-indigo-300 hover:text-indigo-200"
+                    >
+                      View all templates
+                    </button>
+                  </div>
 
-                          <div className="mt-2 flex gap-2">
-                            <span className="rounded-md bg-white/5 px-2 py-1 text-xs">
-                              {paper.visibility}
+                  <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+                    {featuredTemplateKeys.map((key) => {
+                      const template = researchTemplates[key];
+
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => openTemplateEditor(key)}
+                          className="rounded-2xl border border-white/10 bg-[#101823] p-5 text-left transition hover:border-indigo-500/60 hover:bg-[#121d2b]"
+                        >
+                          <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                            <LayoutTemplate size={20} />
+                          </div>
+
+                          <h4 className="font-semibold">{template.label}</h4>
+                          <p className="mt-2 text-sm text-slate-400">
+                            {template.description}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {loading ? (
+                  <div className="rounded-2xl border border-white/10 bg-[#101823] p-10 text-center text-slate-400">
+                    Loading papers...
+                  </div>
+                ) : papers.length === 0 ? (
+                  <div className="rounded-2xl border border-white/10 bg-[#101823] p-10 text-center">
+                    <p className="text-lg font-semibold">No papers yet</p>
+                    <p className="mt-2 text-sm text-slate-400">
+                      Create your first research paper or start from a template.
+                    </p>
+
+                    <button
+                      onClick={openNewPaperEditor}
+                      className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold hover:bg-indigo-500"
+                    >
+                      Create Paper
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {papers.map((paper) => (
+                      <div
+                        key={paper.id}
+                        className="rounded-xl border border-white/10 bg-[#101823] p-4"
+                      >
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => openExistingPaper(paper)}
+                            className="flex flex-1 items-center gap-4 text-left"
+                          >
+                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                              <FileText size={22} />
+                            </div>
+
+                            <div>
+                              <h3 className="font-semibold">{paper.title}</h3>
+                              <p className="text-xs text-slate-400">
+                                {paper.updatedAt}
+                              </p>
+
+                              <div className="mt-2 flex gap-2">
+                                <span className="rounded-md bg-white/5 px-2 py-1 text-xs">
+                                  {paper.visibility}
+                                </span>
+
+                                <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
+                                  {paper.status}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+
+                          <div className="flex items-center gap-5 text-sm text-slate-400">
+                            <span className="flex items-center gap-1">
+                              <Eye size={15} />
+                              {paper.views}
                             </span>
 
-                            <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
-                              {paper.status}
+                            <span className="flex items-center gap-1">
+                              <Star size={15} />
+                              {paper.stars}
                             </span>
+
+                            <button
+                              onClick={() => handleDelete(paper.id)}
+                              className="rounded-lg px-3 py-1 text-red-400 hover:bg-red-500/10"
+                            >
+                              Delete
+                            </button>
+
+                            <MoreVertical size={18} />
                           </div>
                         </div>
-                      </button>
-
-                      <div className="flex items-center gap-5 text-sm text-slate-400">
-                        <span className="flex items-center gap-1">
-                          <Eye size={15} />
-                          {paper.views}
-                        </span>
-
-                        <span className="flex items-center gap-1">
-                          <Star size={15} />
-                          {paper.stars}
-                        </span>
-
-                        <button
-                          onClick={() => handleDelete(paper.id)}
-                          className="rounded-lg px-3 py-1 text-red-400 hover:bg-red-500/10"
-                        >
-                          Delete
-                        </button>
-
-                        <MoreVertical size={18} />
                       </div>
-                    </div>
+                    ))}
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </section>
 
@@ -353,6 +776,43 @@ export default function ResearchVaultPage() {
                 </button>
               </div>
             </div>
+
+            <div className="mt-5 rounded-2xl border border-white/10 bg-[#101823] p-5">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="font-semibold">Featured Templates</h3>
+                <button
+                  onClick={() => setShowTemplatesSection(true)}
+                  className="text-xs text-indigo-300 hover:text-indigo-200"
+                >
+                  All
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                {featuredTemplateKeys.map((key) => {
+                  const template = researchTemplates[key];
+
+                  return (
+                    <button
+                      key={key}
+                      onClick={() => openTemplateEditor(key)}
+                      className="flex w-full gap-3 rounded-xl p-2 text-left hover:bg-white/5"
+                    >
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                        <LayoutTemplate size={18} />
+                      </div>
+
+                      <div>
+                        <p className="text-sm font-medium">{template.label}</p>
+                        <p className="text-xs text-slate-400">
+                          {template.description}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </aside>
         </main>
       </div>
@@ -360,6 +820,7 @@ export default function ResearchVaultPage() {
       {isEditorOpen && (
         <ResearchEditor
           paper={activePaper}
+          initialTemplateKey={selectedTemplateKey}
           onClose={() => setIsEditorOpen(false)}
           onSave={handleSavePaper}
         />
@@ -370,23 +831,39 @@ export default function ResearchVaultPage() {
 
 function ResearchEditor({
   paper,
+  initialTemplateKey,
   onClose,
   onSave,
 }: {
   paper: Paper | null;
+  initialTemplateKey: TemplateKey | null;
   onClose: () => void;
   onSave: (paper: SavePaperPayload, options?: SaveOptions) => Promise<Paper>;
 }) {
-  const [title, setTitle] = useState(paper?.title ?? "");
-  const [abstract, setAbstract] = useState(paper?.abstract ?? "");
-  const [content, setContent] = useState(paper?.content ?? "");
+  const initialTemplate = initialTemplateKey
+    ? researchTemplates[initialTemplateKey]
+    : null;
+
+  const [title, setTitle] = useState(
+    paper?.title ?? initialTemplate?.title ?? "",
+  );
+  const [abstract, setAbstract] = useState(
+    paper?.abstract ?? initialTemplate?.abstract ?? "",
+  );
+  const [content, setContent] = useState(
+    paper?.content ?? initialTemplate?.content ?? "",
+  );
   const [visibility, setVisibility] = useState<PaperVisibility>(
     paper?.visibility ?? "PRIVATE",
   );
   const [preview, setPreview] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("Ready");
+  const [saveStatus, setSaveStatus] = useState(
+    initialTemplate ? "Template applied. Unsaved changes" : "Ready",
+  );
   const [isSaving, setIsSaving] = useState(false);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(
+    Boolean(initialTemplate),
+  );
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [savedPaperId, setSavedPaperId] = useState<string | null>(
     paper?.id ?? null,
@@ -399,10 +876,20 @@ function ResearchEditor({
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const isTitleValid = title.trim().length > 0;
 
+  const applyTemplate = (templateKey: TemplateKey) => {
+    const template = researchTemplates[templateKey];
+
+    setTitle(template.title);
+    setAbstract(template.abstract);
+    setContent(template.content);
+    setHasUnsavedChanges(true);
+    setSaveStatus(`${template.label} template applied. Unsaved changes`);
+  };
+
   useEffect(() => {
     const savedDraft = localStorage.getItem(draftKey);
 
-    if (!savedDraft) return;
+    if (!savedDraft || initialTemplate) return;
 
     try {
       const parsedDraft = JSON.parse(savedDraft) as Partial<SavePaperPayload>;
@@ -418,7 +905,7 @@ function ResearchEditor({
     } catch {
       localStorage.removeItem(draftKey);
     }
-  }, [draftKey, paper]);
+  }, [draftKey, paper, initialTemplate]);
 
   useEffect(() => {
     if (!hasUnsavedChanges) return;
@@ -529,6 +1016,26 @@ function ResearchEditor({
           </div>
 
           <div className="flex gap-3">
+            <select
+              defaultValue=""
+              onChange={(e) => {
+                const value = e.target.value as TemplateKey | "";
+                if (value) {
+                  applyTemplate(value);
+                  e.target.value = "";
+                }
+              }}
+              disabled={isSaving}
+              className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm"
+            >
+              <option value="">Templates</option>
+              {(Object.keys(researchTemplates) as TemplateKey[]).map((key) => (
+                <option key={key} value={key}>
+                  {researchTemplates[key].label}
+                </option>
+              ))}
+            </select>
+
             <select
               value={visibility}
               onChange={(e) => {
