@@ -1,7 +1,9 @@
+import crypto from "crypto";
 import { CreatePaperDTO } from "../dtos/research/CreatePaperDTO.js";
 import { UpdatePaperDTO } from "../dtos/research/UpdatePaperDTO.js";
 import { ResearchPaper } from "../../core/entities/ResearchPaper.entity.js";
 import { IResearchPaperRepository } from "../../core/interfaces/IResearchPaperRepository.js";
+import { ResearchVisibility } from "../../core/types/research.types.js";
 import { AppError } from "../../shared/error/AppError.js";
 
 export class ResearchPaperService {
@@ -44,14 +46,28 @@ export class ResearchPaperService {
       return paper;
     }
 
-    const collaborator =
-      await this.researchPaperRepository.findCollaboratorByPaperAndUser(
-        paperId,
-        userId,
-      );
+    if (paper.visibility === "TEAM_ONLY") {
+      const collaborator =
+        await this.researchPaperRepository.findCollaboratorByPaperAndUser(
+          paperId,
+          userId,
+        );
 
-    if (!collaborator) {
-      throw new AppError("You do not have access to this paper", 403);
+      if (!collaborator) {
+        throw new AppError("Only team members can access this paper", 403);
+      }
+
+      return paper;
+    }
+
+    throw new AppError("You do not have access to this paper", 403);
+  }
+
+  async getPaperByShareToken(shareToken: string): Promise<ResearchPaper> {
+    const paper = await this.researchPaperRepository.findByShareToken(shareToken);
+
+    if (!paper || paper.visibility !== "SHARED_LINK") {
+      throw new AppError("Shared paper not found or link is invalid", 404);
     }
 
     return paper;
@@ -59,6 +75,10 @@ export class ResearchPaperService {
 
   async listUserPapers(userId: string): Promise<ResearchPaper[]> {
     return this.researchPaperRepository.findByAuthorId(userId);
+  }
+
+  async listPublicPapers(): Promise<ResearchPaper[]> {
+    return this.researchPaperRepository.findPublicPapers();
   }
 
   async updatePaper(
@@ -102,10 +122,10 @@ export class ResearchPaperService {
     await this.researchPaperRepository.delete(paperId);
   }
 
-  async changeVisibility(
+  async updateVisibility(
     paperId: string,
     userId: string,
-    visibility: "PRIVATE" | "SHARED" | "PUBLIC",
+    visibility: ResearchVisibility,
   ): Promise<ResearchPaper> {
     const paper = await this.researchPaperRepository.findById(paperId);
 
@@ -117,7 +137,16 @@ export class ResearchPaperService {
       throw new AppError("Only the owner can change visibility", 403);
     }
 
-    return this.researchPaperRepository.update(paperId, { visibility });
+    const shareToken =
+      visibility === "SHARED_LINK"
+        ? crypto.randomBytes(24).toString("hex")
+        : null;
+
+    return this.researchPaperRepository.updateVisibility(
+      paperId,
+      visibility,
+      shareToken,
+    );
   }
 
   private async canUserEditPaper(

@@ -6,6 +6,7 @@ import {
 } from "../../core/interfaces/IResearchPaperRepository.js";
 import { CreatePaperDTO } from "../../application/dtos/research/CreatePaperDTO.js";
 import { UpdatePaperDTO } from "../../application/dtos/research/UpdatePaperDTO.js";
+import { ResearchVisibility } from "../../core/types/research.types.js";
 
 export class ResearchPaperRepository implements IResearchPaperRepository {
   constructor(private prisma: PrismaClient) {}
@@ -33,6 +34,7 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
         folderId: data.folderId,
         visibility: data.visibility ?? "PRIVATE",
         authorId,
+
         tags: data.tagIds?.length
           ? {
               create: data.tagIds.map((tagId) => ({
@@ -83,6 +85,16 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
     return papers.map((paper) => this.toEntity(paper));
   }
 
+  async findByShareToken(
+    shareToken: string,
+  ): Promise<ResearchPaper | null> {
+    const paper = await this.prisma.researchPaper.findUnique({
+      where: { shareToken },
+    });
+
+    return paper ? this.toEntity(paper) : null;
+  }
+
   async findCollaboratorByPaperAndUser(
     paperId: string,
     userId: string,
@@ -106,6 +118,7 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
         content: data.content,
         folderId: data.folderId,
         visibility: data.visibility,
+
         tags: data.tagIds
           ? {
               deleteMany: {},
@@ -116,6 +129,22 @@ export class ResearchPaperRepository implements IResearchPaperRepository {
               })),
             }
           : undefined,
+      },
+    });
+
+    return this.toEntity(paper);
+  }
+
+  async updateVisibility(
+    id: string,
+    visibility: ResearchVisibility,
+    shareToken?: string | null,
+  ): Promise<ResearchPaper> {
+    const paper = await this.prisma.researchPaper.update({
+      where: { id },
+      data: {
+        visibility,
+        shareToken: shareToken ?? null,
       },
     });
 

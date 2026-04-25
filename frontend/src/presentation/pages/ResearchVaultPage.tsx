@@ -15,6 +15,8 @@ import {
   Globe,
   Users,
   LayoutTemplate,
+  Link,
+  Copy,
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
@@ -24,7 +26,7 @@ import {
   type ResearchPaper as ApiResearchPaper,
 } from "../../application/services/ResearchService";
 
-type PaperVisibility = "PRIVATE" | "SHARED" | "PUBLIC";
+type PaperVisibility = "PRIVATE" | "PUBLIC" | "TEAM_ONLY" | "SHARED_LINK";
 
 type Paper = {
   id: string;
@@ -32,6 +34,7 @@ type Paper = {
   abstract: string;
   content: string;
   visibility: PaperVisibility;
+  shareToken?: string | null;
   status: string;
   updatedAt: string;
   views: number;
@@ -370,6 +373,24 @@ Mention planned improvements.`,
 
 const featuredTemplateKeys: TemplateKey[] = ["ieee", "mission", "technical"];
 
+function getVisibilityLabel(visibility: PaperVisibility): string {
+  const labels: Record<PaperVisibility, string> = {
+    PRIVATE: "Private",
+    PUBLIC: "Public",
+    TEAM_ONLY: "Team Only",
+    SHARED_LINK: "Shared via Link",
+  };
+
+  return labels[visibility];
+}
+
+function getVisibilityIcon(visibility: PaperVisibility) {
+  if (visibility === "PRIVATE") return Lock;
+  if (visibility === "PUBLIC") return Globe;
+  if (visibility === "TEAM_ONLY") return Users;
+  return Link;
+}
+
 function mapApiPaperToPaper(paper: ApiResearchPaper): Paper {
   return {
     id: paper.id,
@@ -377,6 +398,7 @@ function mapApiPaperToPaper(paper: ApiResearchPaper): Paper {
     abstract: paper.abstract ?? "",
     content: paper.content ?? "",
     visibility: paper.visibility,
+    shareToken: paper.shareToken ?? null,
     status: paper.visibility === "PUBLIC" ? "Published" : "Draft",
     updatedAt: paper.updatedAt
       ? `Last edited ${new Date(paper.updatedAt).toLocaleString()}`
@@ -465,6 +487,11 @@ export default function ResearchVaultPage() {
         savedPaper = await ResearchService.createPaper(paperData);
       }
 
+      savedPaper = await ResearchService.updateVisibility(
+        savedPaper.id,
+        paperData.visibility,
+      );
+
       const mappedPaper = mapApiPaperToPaper(savedPaper);
 
       setActivePaper(mappedPaper);
@@ -515,13 +542,8 @@ export default function ResearchVaultPage() {
               <button
                 key={item}
                 onClick={() => {
-                  if (item === "Templates") {
-                    setShowTemplatesSection(true);
-                  }
-
-                  if (item === "Research Vault") {
-                    setShowTemplatesSection(false);
-                  }
+                  if (item === "Templates") setShowTemplatesSection(true);
+                  if (item === "Research Vault") setShowTemplatesSection(false);
                 }}
                 className={`w-full rounded-xl px-3 py-2 text-left transition ${
                   (item === "Research Vault" && !showTemplatesSection) ||
@@ -567,7 +589,7 @@ export default function ResearchVaultPage() {
                 <p className="mt-2 text-sm text-slate-400">
                   {showTemplatesSection
                     ? "Start faster with structured formats for papers, missions, thesis, and documentation."
-                    : "Create, manage, and autosave your research papers."}
+                    : "Create, manage, autosave, and control visibility of your research papers."}
                 </p>
               </div>
 
@@ -667,61 +689,66 @@ export default function ResearchVaultPage() {
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {papers.map((paper) => (
-                      <div
-                        key={paper.id}
-                        className="rounded-xl border border-white/10 bg-[#101823] p-4"
-                      >
-                        <div className="flex items-center justify-between">
-                          <button
-                            onClick={() => openExistingPaper(paper)}
-                            className="flex flex-1 items-center gap-4 text-left"
-                          >
-                            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                              <FileText size={22} />
-                            </div>
+                    {papers.map((paper) => {
+                      const VisibilityIcon = getVisibilityIcon(paper.visibility);
 
-                            <div>
-                              <h3 className="font-semibold">{paper.title}</h3>
-                              <p className="text-xs text-slate-400">
-                                {paper.updatedAt}
-                              </p>
-
-                              <div className="mt-2 flex gap-2">
-                                <span className="rounded-md bg-white/5 px-2 py-1 text-xs">
-                                  {paper.visibility}
-                                </span>
-
-                                <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
-                                  {paper.status}
-                                </span>
-                              </div>
-                            </div>
-                          </button>
-
-                          <div className="flex items-center gap-5 text-sm text-slate-400">
-                            <span className="flex items-center gap-1">
-                              <Eye size={15} />
-                              {paper.views}
-                            </span>
-
-                            <span className="flex items-center gap-1">
-                              <Star size={15} />
-                              {paper.stars}
-                            </span>
-
+                      return (
+                        <div
+                          key={paper.id}
+                          className="rounded-xl border border-white/10 bg-[#101823] p-4"
+                        >
+                          <div className="flex items-center justify-between">
                             <button
-                              onClick={() => handleDelete(paper.id)}
-                              className="rounded-lg px-3 py-1 text-red-400 hover:bg-red-500/10"
+                              onClick={() => openExistingPaper(paper)}
+                              className="flex flex-1 items-center gap-4 text-left"
                             >
-                              Delete
+                              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                                <FileText size={22} />
+                              </div>
+
+                              <div>
+                                <h3 className="font-semibold">{paper.title}</h3>
+                                <p className="text-xs text-slate-400">
+                                  {paper.updatedAt}
+                                </p>
+
+                                <div className="mt-2 flex gap-2">
+                                  <span className="flex items-center gap-1 rounded-md bg-white/5 px-2 py-1 text-xs">
+                                    <VisibilityIcon size={12} />
+                                    {getVisibilityLabel(paper.visibility)}
+                                  </span>
+
+                                  <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
+                                    {paper.status}
+                                  </span>
+                                </div>
+                              </div>
                             </button>
 
-                            <MoreVertical size={18} />
+                            <div className="flex items-center gap-5 text-sm text-slate-400">
+                              <span className="flex items-center gap-1">
+                                <Eye size={15} />
+                                {paper.views}
+                              </span>
+
+                              <span className="flex items-center gap-1">
+                                <Star size={15} />
+                                {paper.stars}
+                              </span>
+
+                              <button
+                                onClick={() => handleDelete(paper.id)}
+                                className="rounded-lg px-3 py-1 text-red-400 hover:bg-red-500/10"
+                              >
+                                Delete
+                              </button>
+
+                              <MoreVertical size={18} />
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </>
@@ -856,6 +883,9 @@ function ResearchEditor({
   const [visibility, setVisibility] = useState<PaperVisibility>(
     paper?.visibility ?? "PRIVATE",
   );
+  const [shareToken, setShareToken] = useState<string | null>(
+    paper?.shareToken ?? null,
+  );
   const [preview, setPreview] = useState(false);
   const [saveStatus, setSaveStatus] = useState(
     initialTemplate ? "Template applied. Unsaved changes" : "Ready",
@@ -875,6 +905,10 @@ function ResearchEditor({
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const isTitleValid = title.trim().length > 0;
+  const sharedLink =
+    shareToken && visibility === "SHARED_LINK"
+      ? `${window.location.origin}/research/shared/${shareToken}`
+      : "";
 
   const applyTemplate = (templateKey: TemplateKey) => {
     const template = researchTemplates[templateKey];
@@ -931,6 +965,7 @@ function ResearchEditor({
         const savedPaper = await onSave(draftPayload, { silent: true });
 
         setSavedPaperId(savedPaper.id);
+        setShareToken(savedPaper.shareToken ?? null);
         localStorage.removeItem(draftKey);
         setLastSavedAt(new Date());
         setHasUnsavedChanges(false);
@@ -977,6 +1012,7 @@ function ResearchEditor({
       const savedPaper = await onSave(payload, { silent: false });
 
       setSavedPaperId(savedPaper.id);
+      setShareToken(savedPaper.shareToken ?? null);
       localStorage.removeItem(draftKey);
       setLastSavedAt(new Date());
       setHasUnsavedChanges(false);
@@ -987,6 +1023,16 @@ function ResearchEditor({
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleCopyShareLink = async () => {
+    if (!sharedLink) {
+      setSaveStatus("Save with Shared via Link visibility first.");
+      return;
+    }
+
+    await navigator.clipboard.writeText(sharedLink);
+    setSaveStatus("Share link copied");
   };
 
   const lastSavedText = lastSavedAt
@@ -1006,7 +1052,8 @@ function ResearchEditor({
                 saveStatus.includes("failed")
                   ? "text-red-400"
                   : saveStatus.includes("Autosaved") ||
-                      saveStatus.includes("Saved")
+                      saveStatus.includes("Saved") ||
+                      saveStatus.includes("copied")
                     ? "text-emerald-400"
                     : "text-slate-400"
               }`}
@@ -1046,9 +1093,21 @@ function ResearchEditor({
               className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm"
             >
               <option value="PRIVATE">Private</option>
-              <option value="SHARED">Shared</option>
               <option value="PUBLIC">Public</option>
+              <option value="TEAM_ONLY">Team Only</option>
+              <option value="SHARED_LINK">Shared via Link</option>
             </select>
+
+            {visibility === "SHARED_LINK" && (
+              <button
+                onClick={handleCopyShareLink}
+                disabled={isSaving || !sharedLink}
+                className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-2 text-sm disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Copy size={15} />
+                Copy Link
+              </button>
+            )}
 
             <button
               onClick={() => setPreview((prev) => !prev)}
@@ -1084,6 +1143,31 @@ function ResearchEditor({
               </p>
             )}
 
+            {visibility === "SHARED_LINK" && (
+              <div className="mb-5 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-4 text-sm text-indigo-100">
+                <p className="font-medium">Shared via Link</p>
+                <p className="mt-1 text-indigo-200/80">
+                  Anyone with the generated link can view this paper.
+                </p>
+
+                {sharedLink ? (
+                  <div className="mt-3 flex items-center gap-2 rounded-xl bg-black/20 px-3 py-2 text-xs text-slate-300">
+                    <span className="truncate">{sharedLink}</span>
+                    <button
+                      onClick={handleCopyShareLink}
+                      className="text-indigo-300 hover:text-indigo-200"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ) : (
+                  <p className="mt-3 text-xs text-slate-400">
+                    Save the paper once to generate the share link.
+                  </p>
+                )}
+              </div>
+            )}
+
             <input
               value={title}
               onChange={(e) => {
@@ -1112,13 +1196,16 @@ function ResearchEditor({
                   {visibility === "PRIVATE" && (
                     <Lock size={15} className="mr-1 inline" />
                   )}
-                  {visibility === "SHARED" && (
-                    <Users size={15} className="mr-1 inline" />
-                  )}
                   {visibility === "PUBLIC" && (
                     <Globe size={15} className="mr-1 inline" />
                   )}
-                  {visibility}
+                  {visibility === "TEAM_ONLY" && (
+                    <Users size={15} className="mr-1 inline" />
+                  )}
+                  {visibility === "SHARED_LINK" && (
+                    <Link size={15} className="mr-1 inline" />
+                  )}
+                  {getVisibilityLabel(visibility)}
                 </span>
 
                 <span>{wordCount} words</span>

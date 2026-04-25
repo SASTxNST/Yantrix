@@ -1,7 +1,11 @@
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
-export type PaperVisibility = "PRIVATE" | "SHARED" | "PUBLIC";
+export type PaperVisibility =
+  | "PRIVATE"
+  | "PUBLIC"
+  | "TEAM_ONLY"
+  | "SHARED_LINK";
 
 export type ResearchPaperPayload = {
   title: string;
@@ -20,6 +24,7 @@ export type ResearchPaper = {
   visibility: PaperVisibility;
   authorId: string;
   folderId?: string | null;
+  shareToken?: string | null;
   createdAt?: string;
   updatedAt?: string;
 };
@@ -76,10 +81,25 @@ export const ResearchService = {
     return request<ResearchPaper>(`/research/papers/${id}`);
   },
 
+  getPublicPapers() {
+    return request<ResearchPaper[]>("/research/public");
+  },
+
+  getPaperByShareToken(shareToken: string) {
+    return request<ResearchPaper>(`/research/shared/${shareToken}`);
+  },
+
   updatePaper(id: string, data: ResearchPaperPayload) {
     return request<ResearchPaper>(`/research/papers/${id}`, {
       method: "PATCH",
       body: JSON.stringify(data),
+    });
+  },
+
+  updateVisibility(id: string, visibility: PaperVisibility) {
+    return request<ResearchPaper>(`/research/papers/${id}/visibility`, {
+      method: "PATCH",
+      body: JSON.stringify({ visibility }),
     });
   },
 
