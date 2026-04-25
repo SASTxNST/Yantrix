@@ -18,7 +18,10 @@ import {
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import { ResearchService } from "../../application/services/ResearchService";
+import {
+  ResearchService,
+  type ResearchPaper as ApiResearchPaper,
+} from "../../application/services/ResearchService";
 
 type PaperVisibility = "PRIVATE" | "SHARED" | "PUBLIC";
 
@@ -36,6 +39,35 @@ type Paper = {
   tags: string[];
 };
 
+type SaveOptions = {
+  silent?: boolean;
+};
+
+type SavePaperPayload = {
+  title: string;
+  abstract: string;
+  content: string;
+  visibility: PaperVisibility;
+};
+
+function mapApiPaperToPaper(paper: ApiResearchPaper): Paper {
+  return {
+    id: paper.id,
+    title: paper.title,
+    abstract: paper.abstract ?? "",
+    content: paper.content ?? "",
+    visibility: paper.visibility,
+    status: paper.visibility === "PUBLIC" ? "Published" : "Draft",
+    updatedAt: paper.updatedAt
+      ? `Last edited ${new Date(paper.updatedAt).toLocaleString()}`
+      : "Updated recently",
+    views: 0,
+    citations: 0,
+    stars: 0,
+    tags: [],
+  };
+}
+
 export default function ResearchVaultPage() {
   const [papers, setPapers] = useState<Paper[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,24 +78,8 @@ export default function ResearchVaultPage() {
   const fetchPapers = async () => {
     try {
       setLoading(true);
-
       const data = await ResearchService.getMyPapers();
-
-      setPapers(
-        data.map((paper) => ({
-          id: paper.id,
-          title: paper.title,
-          abstract: paper.abstract ?? "",
-          content: paper.content ?? "",
-          visibility: paper.visibility,
-          status: paper.visibility === "PUBLIC" ? "Published" : "Draft",
-          updatedAt: "Updated recently",
-          views: 0,
-          citations: 0,
-          stars: 0,
-          tags: [],
-        })),
-      );
+      setPapers(data.map(mapApiPaperToPaper));
     } catch (error) {
       console.error("Failed to fetch papers:", error);
       setPageMessage("Failed to load papers. Please try again.");
@@ -97,6 +113,45 @@ export default function ResearchVaultPage() {
     } catch (error) {
       console.error(error);
       setPageMessage("Failed to delete paper.");
+    }
+  };
+
+  const handleSavePaper = async (
+    paperData: SavePaperPayload,
+    options?: SaveOptions,
+  ): Promise<Paper> => {
+    try {
+      if (!options?.silent) {
+        setPageMessage(activePaper ? "Updating paper..." : "Saving paper...");
+      }
+
+      let savedPaper: ApiResearchPaper;
+
+      if (activePaper) {
+        savedPaper = await ResearchService.updatePaper(activePaper.id, paperData);
+      } else {
+        savedPaper = await ResearchService.createPaper(paperData);
+      }
+
+      const mappedPaper = mapApiPaperToPaper(savedPaper);
+
+      setActivePaper(mappedPaper);
+      await fetchPapers();
+
+      if (!options?.silent) {
+        setIsEditorOpen(false);
+        setPageMessage("Paper saved successfully.");
+      }
+
+      return mappedPaper;
+    } catch (error) {
+      console.error(error);
+
+      if (!options?.silent) {
+        setPageMessage("Failed to save paper.");
+      }
+
+      throw error;
     }
   };
 
@@ -207,7 +262,6 @@ export default function ResearchVaultPage() {
 
                         <div>
                           <h3 className="font-semibold">{paper.title}</h3>
-
                           <p className="text-xs text-slate-400">
                             {paper.updatedAt}
                           </p>
@@ -307,26 +361,7 @@ export default function ResearchVaultPage() {
         <ResearchEditor
           paper={activePaper}
           onClose={() => setIsEditorOpen(false)}
-          onSave={async (paperData) => {
-            try {
-              setPageMessage(activePaper ? "Updating paper..." : "Saving paper...");
-
-              if (activePaper) {
-                await ResearchService.updatePaper(activePaper.id, paperData);
-                setPageMessage("Paper updated successfully.");
-              } else {
-                await ResearchService.createPaper(paperData);
-                setPageMessage("Paper saved successfully.");
-              }
-
-              await fetchPapers();
-              setIsEditorOpen(false);
-            } catch (error) {
-              console.error(error);
-              setPageMessage("Failed to save paper.");
-              throw error;
-            }
-          }}
+          onSave={handleSavePaper}
         />
       )}
     </div>
@@ -340,12 +375,7 @@ function ResearchEditor({
 }: {
   paper: Paper | null;
   onClose: () => void;
-  onSave: (paper: {
-    title: string;
-    abstract: string;
-    content: string;
-    visibility: PaperVisibility;
-  }) => Promise<void>;
+  onSave: (paper: SavePaperPayload, options?: SaveOptions) => Promise<Paper>;
 }) {
   const [title, setTitle] = useState(paper?.title ?? "");
   const [abstract, setAbstract] = useState(paper?.abstract ?? "");
@@ -354,13 +384,93 @@ function ResearchEditor({
     paper?.visibility ?? "PRIVATE",
   );
   const [preview, setPreview] = useState(false);
-  const [saveStatus, setSaveStatus] = useState("");
+  const [saveStatus, setSaveStatus] = useState("Ready");
   const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [savedPaperId, setSavedPaperId] = useState<string | null>(
+    paper?.id ?? null,
+  );
+
+  const draftKey = savedPaperId
+    ? `research-draft-${savedPaperId}`
+    : "research-draft-new";
 
   const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
   const isTitleValid = title.trim().length > 0;
 
-  const handleSave = async () => {
+  useEffect(() => {
+    const savedDraft = localStorage.getItem(draftKey);
+
+    if (!savedDraft) return;
+
+    try {
+      const parsedDraft = JSON.parse(savedDraft) as Partial<SavePaperPayload>;
+
+      if (!paper) {
+        setTitle(parsedDraft.title ?? "");
+        setAbstract(parsedDraft.abstract ?? "");
+        setContent(parsedDraft.content ?? "");
+        setVisibility(parsedDraft.visibility ?? "PRIVATE");
+        setHasUnsavedChanges(true);
+        setSaveStatus("Recovered local draft");
+      }
+    } catch {
+      localStorage.removeItem(draftKey);
+    }
+  }, [draftKey, paper]);
+
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+
+    const timer = window.setTimeout(async () => {
+      const draftPayload: SavePaperPayload = {
+        title: title.trim(),
+        abstract: abstract.trim(),
+        content,
+        visibility,
+      };
+
+      localStorage.setItem(draftKey, JSON.stringify(draftPayload));
+
+      if (!draftPayload.title) {
+        setSaveStatus("Local draft saved. Add title to sync.");
+        return;
+      }
+
+      try {
+        setSaveStatus("Autosaving...");
+
+        const savedPaper = await onSave(draftPayload, { silent: true });
+
+        setSavedPaperId(savedPaper.id);
+        localStorage.removeItem(draftKey);
+        setLastSavedAt(new Date());
+        setHasUnsavedChanges(false);
+        setSaveStatus("Autosaved");
+      } catch (error) {
+        console.error(error);
+        setSaveStatus("Saved locally. Backend sync failed.");
+      }
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, [
+    title,
+    abstract,
+    content,
+    visibility,
+    hasUnsavedChanges,
+    draftKey,
+    onSave,
+  ]);
+
+  const markUnsaved = () => {
+    setHasUnsavedChanges(true);
+    setSaveStatus("Unsaved changes");
+  };
+
+  const handleManualSave = async () => {
     if (!isTitleValid) {
       setSaveStatus("Please enter a title before saving.");
       return;
@@ -370,21 +480,31 @@ function ResearchEditor({
       setIsSaving(true);
       setSaveStatus("Saving...");
 
-      await onSave({
+      const payload: SavePaperPayload = {
         title: title.trim(),
         abstract: abstract.trim(),
         content,
         visibility,
-      });
+      };
 
-      setSaveStatus("Saved successfully.");
+      const savedPaper = await onSave(payload, { silent: false });
+
+      setSavedPaperId(savedPaper.id);
+      localStorage.removeItem(draftKey);
+      setLastSavedAt(new Date());
+      setHasUnsavedChanges(false);
+      setSaveStatus("Saved successfully");
     } catch (error) {
       console.error(error);
-      setSaveStatus("Save failed. Check console/backend logs.");
+      setSaveStatus("Save failed. Draft saved locally.");
     } finally {
       setIsSaving(false);
     }
   };
+
+  const lastSavedText = lastSavedAt
+    ? `Last saved at ${lastSavedAt.toLocaleTimeString()}`
+    : "Not saved yet";
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
@@ -392,26 +512,31 @@ function ResearchEditor({
         <header className="flex items-center justify-between border-b border-white/10 px-8 py-5">
           <div>
             <h2 className="text-xl font-semibold">Research Editor</h2>
-            {saveStatus && (
-              <p
-                className={`mt-1 text-sm ${
-                  saveStatus.includes("failed") ||
-                  saveStatus.includes("Please")
-                    ? "text-red-400"
-                    : "text-emerald-400"
-                }`}
-              >
-                {saveStatus}
-              </p>
-            )}
+            <p
+              className={`mt-1 text-sm ${
+                saveStatus.includes("failed") ||
+                saveStatus.includes("Please") ||
+                saveStatus.includes("failed")
+                  ? "text-red-400"
+                  : saveStatus.includes("Autosaved") ||
+                      saveStatus.includes("Saved")
+                    ? "text-emerald-400"
+                    : "text-slate-400"
+              }`}
+            >
+              {saveStatus} · {lastSavedText}
+            </p>
           </div>
 
           <div className="flex gap-3">
             <select
               value={visibility}
-              onChange={(e) => setVisibility(e.target.value as PaperVisibility)}
-              className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm"
+              onChange={(e) => {
+                setVisibility(e.target.value as PaperVisibility);
+                markUnsaved();
+              }}
               disabled={isSaving}
+              className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm"
             >
               <option value="PRIVATE">Private</option>
               <option value="SHARED">Shared</option>
@@ -420,22 +545,22 @@ function ResearchEditor({
 
             <button
               onClick={() => setPreview((prev) => !prev)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm"
               disabled={isSaving}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm"
             >
               {preview ? "Write" : "Preview"}
             </button>
 
             <button
               onClick={onClose}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm"
               disabled={isSaving}
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm"
             >
               Cancel
             </button>
 
             <button
-              onClick={handleSave}
+              onClick={handleManualSave}
               disabled={isSaving || !isTitleValid}
               className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
@@ -448,7 +573,7 @@ function ResearchEditor({
           <div className="mx-auto max-w-4xl">
             {!isTitleValid && (
               <p className="mb-3 text-sm text-red-400">
-                Title is required to save this paper.
+                Title is required to sync this paper with backend.
               </p>
             )}
 
@@ -456,19 +581,22 @@ function ResearchEditor({
               value={title}
               onChange={(e) => {
                 setTitle(e.target.value);
-                setSaveStatus("");
+                markUnsaved();
               }}
+              disabled={isSaving}
               placeholder="Untitled Research Paper"
               className="mb-6 w-full bg-transparent text-4xl font-bold outline-none"
-              disabled={isSaving}
             />
 
             <textarea
               value={abstract}
-              onChange={(e) => setAbstract(e.target.value)}
+              onChange={(e) => {
+                setAbstract(e.target.value);
+                markUnsaved();
+              }}
+              disabled={isSaving}
               placeholder="Write abstract..."
               className="mb-6 min-h-28 w-full rounded-2xl border border-white/10 bg-[#101823] p-5"
-              disabled={isSaving}
             />
 
             <div className="mb-4 flex items-center justify-between text-sm text-slate-400">
@@ -508,7 +636,10 @@ function ResearchEditor({
             ) : (
               <textarea
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e) => {
+                  setContent(e.target.value);
+                  markUnsaved();
+                }}
                 disabled={isSaving}
                 placeholder={`## Introduction
 
