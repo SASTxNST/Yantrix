@@ -5,6 +5,7 @@ import { HomePage } from "../pages/HomePage";
 import { LoginPage } from "../pages/LoginPage";
 import { SignupPage } from "../pages/SignupPage";
 import { ProfilePage } from "../pages/ProfilePage";
+import ResearchVaultPage from "../pages/ResearchVaultPage";
 
 export function AppRoutes() {
   return (
@@ -16,6 +17,10 @@ export function AppRoutes() {
 
         <Route element={<ProtectedRoute />}>
           <Route path="/profile" element={<ProfilePage />} />
+          <Route
+            path="/research-vault"
+            element={<ResearchVaultPage />}
+          />
         </Route>
       </Routes>
     </BrowserRouter>

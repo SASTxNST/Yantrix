@@ -1,6 +1,6 @@
 // src/presentation/pages/ResearchVaultPage.tsx
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   FileText,
   Folder,
@@ -15,6 +15,10 @@ import {
   Globe,
   Users,
 } from "lucide-react";
+import ReactMarkdown from "react-markdown";
+import remarkMath from "remark-math";
+import rehypeKatex from "rehype-katex";
+import { ResearchService } from "../../application/services/ResearchService";
 
 type PaperVisibility = "PRIVATE" | "SHARED" | "PUBLIC";
 
@@ -32,48 +36,68 @@ type Paper = {
   tags: string[];
 };
 
-const samplePapers: Paper[] = [
-  {
-    id: "1",
-    title: "Deep Learning for Satellite Image Super-Resolution",
-    abstract: "A research paper exploring deep learning techniques for satellite imagery.",
-    content: "",
-    visibility: "PUBLIC",
-    status: "Published",
-    updatedAt: "Updated 2 hours ago",
-    views: 624,
-    citations: 32,
-    stars: 15,
-    tags: ["Deep Learning", "Satellite Imagery", "CV"],
-  },
-  {
-    id: "2",
-    title: "Orbital Debris Prediction using ML models",
-    abstract: "Predicting orbital debris movement using machine learning methods.",
-    content: "",
-    visibility: "PRIVATE",
-    status: "Draft",
-    updatedAt: "Updated 1 day ago",
-    views: 142,
-    citations: 8,
-    stars: 3,
-    tags: ["Orbital Mechanics", "Machine Learning", "Space"],
-  },
-];
-
 export default function ResearchVaultPage() {
-  const [papers, setPapers] = useState<Paper[]>(samplePapers);
+  const [papers, setPapers] = useState<Paper[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isEditorOpen, setIsEditorOpen] = useState(false);
   const [activePaper, setActivePaper] = useState<Paper | null>(null);
+  const [pageMessage, setPageMessage] = useState("");
+
+  const fetchPapers = async () => {
+    try {
+      setLoading(true);
+
+      const data = await ResearchService.getMyPapers();
+
+      setPapers(
+        data.map((paper) => ({
+          id: paper.id,
+          title: paper.title,
+          abstract: paper.abstract ?? "",
+          content: paper.content ?? "",
+          visibility: paper.visibility,
+          status: paper.visibility === "PUBLIC" ? "Published" : "Draft",
+          updatedAt: "Updated recently",
+          views: 0,
+          citations: 0,
+          stars: 0,
+          tags: [],
+        })),
+      );
+    } catch (error) {
+      console.error("Failed to fetch papers:", error);
+      setPageMessage("Failed to load papers. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchPapers();
+  }, []);
 
   const openNewPaperEditor = () => {
+    setPageMessage("");
     setActivePaper(null);
     setIsEditorOpen(true);
   };
 
   const openExistingPaper = (paper: Paper) => {
+    setPageMessage("");
     setActivePaper(paper);
     setIsEditorOpen(true);
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      setPageMessage("Deleting paper...");
+      await ResearchService.deletePaper(id);
+      await fetchPapers();
+      setPageMessage("Paper deleted successfully.");
+    } catch (error) {
+      console.error(error);
+      setPageMessage("Failed to delete paper.");
+    }
   };
 
   return (
@@ -99,16 +123,11 @@ export default function ResearchVaultPage() {
               "Notes",
               "Templates",
               "AI Assistant",
-              "Datasets",
-              "Models",
-              "Missions",
-              "Simulations",
-              "Code Repos",
             ].map((item) => (
               <button
                 key={item}
                 className={`w-full rounded-xl px-3 py-2 text-left transition ${
-                  item === "Research Vault" || item === "My Vault"
+                  item === "Research Vault"
                     ? "bg-indigo-600/20 text-white"
                     : "hover:bg-white/5"
                 }`}
@@ -128,8 +147,8 @@ export default function ResearchVaultPage() {
                   className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
-                  className="w-full rounded-xl border border-white/10 bg-[#0f1723] px-11 py-3 text-sm outline-none placeholder:text-slate-500 focus:border-indigo-500"
-                  placeholder="Search papers, datasets, researchers..."
+                  placeholder="Search papers..."
+                  className="w-full rounded-xl border border-white/10 bg-[#0f1723] px-11 py-3 text-sm outline-none"
                 />
               </div>
 
@@ -137,195 +156,148 @@ export default function ResearchVaultPage() {
                 onClick={openNewPaperEditor}
                 className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold hover:bg-indigo-500"
               >
-                <Plus size={17} />
-                New
+                <Plus size={16} />
+                New Paper
               </button>
             </div>
 
-            <div className="mb-8 flex items-start justify-between">
-              <div>
-                <h2 className="text-3xl font-bold">Research Vault</h2>
-                <p className="mt-1 text-sm text-slate-400">
-                  Your complete research journey, in one place.
+            <div className="mb-6 flex items-center justify-between">
+              <h2 className="text-3xl font-bold">Research Vault</h2>
+
+              {pageMessage && (
+                <p className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm text-slate-300">
+                  {pageMessage}
                 </p>
-
-                <div className="mt-6 flex gap-3">
-                  <button
-                    onClick={openNewPaperEditor}
-                    className="flex items-center gap-2 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold hover:bg-indigo-500"
-                  >
-                    <Plus size={17} />
-                    New Paper
-                  </button>
-
-                  <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#101823] px-5 py-3 text-sm hover:bg-white/5">
-                    <Upload size={16} />
-                    Import
-                  </button>
-
-                  <button className="flex items-center gap-2 rounded-xl border border-white/10 bg-[#101823] px-5 py-3 text-sm hover:bg-white/5">
-                    <Folder size={16} />
-                    New Folder
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-4 gap-4">
-                {[
-                  ["Total Papers", "27", "+3 this month"],
-                  ["Views", "4.2K", "+18% this month"],
-                  ["Citations", "128", "+7 this month"],
-                  ["h-Index", "6", "+1 this month"],
-                ].map(([label, value, change]) => (
-                  <div
-                    key={label}
-                    className="w-44 rounded-2xl border border-white/10 bg-[#101823] p-5"
-                  >
-                    <p className="text-xs text-slate-400">{label}</p>
-                    <h3 className="mt-3 text-3xl font-bold">{value}</h3>
-                    <p className="mt-2 text-xs text-emerald-400">{change}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <div className="mb-5 flex gap-8 border-b border-white/10 text-sm text-slate-400">
-              {["All Papers", "My Papers", "Shared with me", "Starred"].map(
-                (tab, index) => (
-                  <button
-                    key={tab}
-                    className={`pb-3 ${
-                      index === 0
-                        ? "border-b-2 border-indigo-500 text-white"
-                        : "hover:text-white"
-                    }`}
-                  >
-                    {tab}
-                  </button>
-                ),
               )}
             </div>
 
-            <div className="mb-4 flex items-center gap-3">
-              <div className="relative flex-1">
-                <Search
-                  size={16}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500"
-                />
-                <input
-                  className="w-full rounded-xl border border-white/10 bg-[#101823] px-10 py-3 text-sm outline-none placeholder:text-slate-500"
-                  placeholder="Search in your vault..."
-                />
+            {loading ? (
+              <div className="rounded-2xl border border-white/10 bg-[#101823] p-10 text-center text-slate-400">
+                Loading papers...
               </div>
+            ) : papers.length === 0 ? (
+              <div className="rounded-2xl border border-white/10 bg-[#101823] p-10 text-center">
+                <p className="text-lg font-semibold">No papers yet</p>
+                <p className="mt-2 text-sm text-slate-400">
+                  Create your first research paper.
+                </p>
 
-              {["Status", "Visibility", "Type", "Tags"].map((filter) => (
                 <button
-                  key={filter}
-                  className="rounded-xl border border-white/10 bg-[#101823] px-4 py-3 text-sm text-slate-300"
+                  onClick={openNewPaperEditor}
+                  className="mt-5 rounded-xl bg-indigo-600 px-5 py-3 text-sm font-semibold hover:bg-indigo-500"
                 >
-                  {filter}
+                  Create Paper
                 </button>
-              ))}
-            </div>
-
-            <div className="space-y-3">
-              {papers.map((paper) => (
-                <button
-                  key={paper.id}
-                  onClick={() => openExistingPaper(paper)}
-                  className="w-full rounded-xl border border-white/10 bg-[#101823] p-4 text-left transition hover:border-indigo-500/60 hover:bg-[#121d2b]"
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
-                        <FileText size={24} />
-                      </div>
-
-                      <div>
-                        <div className="flex items-center gap-3">
-                          <h3 className="font-semibold text-white">
-                            {paper.title}
-                          </h3>
-
-                          <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
-                            {paper.status}
-                          </span>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {papers.map((paper) => (
+                  <div
+                    key={paper.id}
+                    className="rounded-xl border border-white/10 bg-[#101823] p-4"
+                  >
+                    <div className="flex items-center justify-between">
+                      <button
+                        onClick={() => openExistingPaper(paper)}
+                        className="flex flex-1 items-center gap-4 text-left"
+                      >
+                        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-blue-500/10 text-blue-400">
+                          <FileText size={22} />
                         </div>
 
-                        <p className="mt-1 text-xs text-slate-400">
-                          {paper.updatedAt}
-                        </p>
+                        <div>
+                          <h3 className="font-semibold">{paper.title}</h3>
 
-                        <div className="mt-2 flex gap-2">
-                          {paper.tags.map((tag) => (
-                            <span
-                              key={tag}
-                              className="rounded-md border border-white/10 bg-white/5 px-2 py-1 text-xs text-slate-400"
-                            >
-                              {tag}
+                          <p className="text-xs text-slate-400">
+                            {paper.updatedAt}
+                          </p>
+
+                          <div className="mt-2 flex gap-2">
+                            <span className="rounded-md bg-white/5 px-2 py-1 text-xs">
+                              {paper.visibility}
                             </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
 
-                    <div className="flex items-center gap-7 text-sm text-slate-400">
-                      <span className="flex items-center gap-1">
-                        <Eye size={15} />
-                        {paper.views}
-                      </span>
-                      <span>{paper.citations}</span>
-                      <span className="flex items-center gap-1">
-                        <Star size={15} />
-                        {paper.stars}
-                      </span>
-                      <MoreVertical size={18} />
+                            <span className="rounded-md bg-emerald-500/10 px-2 py-1 text-xs text-emerald-400">
+                              {paper.status}
+                            </span>
+                          </div>
+                        </div>
+                      </button>
+
+                      <div className="flex items-center gap-5 text-sm text-slate-400">
+                        <span className="flex items-center gap-1">
+                          <Eye size={15} />
+                          {paper.views}
+                        </span>
+
+                        <span className="flex items-center gap-1">
+                          <Star size={15} />
+                          {paper.stars}
+                        </span>
+
+                        <button
+                          onClick={() => handleDelete(paper.id)}
+                          className="rounded-lg px-3 py-1 text-red-400 hover:bg-red-500/10"
+                        >
+                          Delete
+                        </button>
+
+                        <MoreVertical size={18} />
+                      </div>
                     </div>
                   </div>
-                </button>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </section>
 
           <aside className="w-80 border-l border-white/10 bg-[#0d141f] px-5 py-24">
             <div className="rounded-2xl border border-white/10 bg-[#101823] p-5">
-              <h3 className="mb-5 font-semibold">Create New</h3>
+              <h3 className="mb-5 font-semibold">Quick Actions</h3>
 
               <div className="space-y-4">
-                {[
-                  ["New Paper", "Start writing a new research paper"],
-                  ["New Note", "Capture ideas and notes"],
-                  ["Import from Overleaf", "Import .tex files and continue"],
-                  ["Upload Document", "Upload and manage documents"],
-                ].map(([title, desc]) => (
-                  <button
-                    key={title}
-                    onClick={title === "New Paper" ? openNewPaperEditor : undefined}
-                    className="flex w-full gap-3 rounded-xl p-2 text-left hover:bg-white/5"
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
-                      <FileText size={18} />
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium">{title}</p>
-                      <p className="text-xs text-slate-400">{desc}</p>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+                <button
+                  onClick={openNewPaperEditor}
+                  className="flex w-full gap-3 rounded-xl p-2 text-left hover:bg-white/5"
+                >
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                    <Plus size={18} />
+                  </div>
 
-            <div className="mt-5 rounded-2xl border border-white/10 bg-[#101823] p-5">
-              <h3 className="mb-4 font-semibold">AI Research Assistant</h3>
-              <div className="space-y-3 text-sm text-slate-300">
-                <p>Summarize a paper</p>
-                <p>Find related work</p>
-                <p>Improve writing</p>
-                <p>Suggest references</p>
+                  <div>
+                    <p className="text-sm font-medium">New Paper</p>
+                    <p className="text-xs text-slate-400">
+                      Start writing instantly
+                    </p>
+                  </div>
+                </button>
+
+                <button className="flex w-full gap-3 rounded-xl p-2 text-left hover:bg-white/5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                    <Upload size={18} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium">Import</p>
+                    <p className="text-xs text-slate-400">
+                      Upload markdown or docs
+                    </p>
+                  </div>
+                </button>
+
+                <button className="flex w-full gap-3 rounded-xl p-2 text-left hover:bg-white/5">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/10 text-indigo-400">
+                    <Folder size={18} />
+                  </div>
+
+                  <div>
+                    <p className="text-sm font-medium">New Folder</p>
+                    <p className="text-xs text-slate-400">
+                      Organize research work
+                    </p>
+                  </div>
+                </button>
               </div>
-              <button className="mt-5 w-full rounded-xl bg-indigo-600 py-3 text-sm font-semibold hover:bg-indigo-500">
-                Open Assistant
-              </button>
             </div>
           </aside>
         </main>
@@ -335,33 +307,25 @@ export default function ResearchVaultPage() {
         <ResearchEditor
           paper={activePaper}
           onClose={() => setIsEditorOpen(false)}
-          onSave={(paperData) => {
-            if (activePaper) {
-              setPapers((prev) =>
-                prev.map((paper) =>
-                  paper.id === activePaper.id ? { ...paper, ...paperData } : paper,
-                ),
-              );
-            } else {
-              setPapers((prev) => [
-                {
-                  id: crypto.randomUUID(),
-                  title: paperData.title,
-                  abstract: paperData.abstract,
-                  content: paperData.content,
-                  visibility: paperData.visibility,
-                  status: "Draft",
-                  updatedAt: "Updated just now",
-                  views: 0,
-                  citations: 0,
-                  stars: 0,
-                  tags: [],
-                },
-                ...prev,
-              ]);
-            }
+          onSave={async (paperData) => {
+            try {
+              setPageMessage(activePaper ? "Updating paper..." : "Saving paper...");
 
-            setIsEditorOpen(false);
+              if (activePaper) {
+                await ResearchService.updatePaper(activePaper.id, paperData);
+                setPageMessage("Paper updated successfully.");
+              } else {
+                await ResearchService.createPaper(paperData);
+                setPageMessage("Paper saved successfully.");
+              }
+
+              await fetchPapers();
+              setIsEditorOpen(false);
+            } catch (error) {
+              console.error(error);
+              setPageMessage("Failed to save paper.");
+              throw error;
+            }
           }}
         />
       )}
@@ -381,7 +345,7 @@ function ResearchEditor({
     abstract: string;
     content: string;
     visibility: PaperVisibility;
-  }) => void;
+  }) => Promise<void>;
 }) {
   const [title, setTitle] = useState(paper?.title ?? "");
   const [abstract, setAbstract] = useState(paper?.abstract ?? "");
@@ -390,27 +354,64 @@ function ResearchEditor({
     paper?.visibility ?? "PRIVATE",
   );
   const [preview, setPreview] = useState(false);
+  const [saveStatus, setSaveStatus] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
 
-  const wordCount = content.trim()
-    ? content.trim().split(/\s+/).length
-    : 0;
+  const wordCount = content.trim() ? content.trim().split(/\s+/).length : 0;
+  const isTitleValid = title.trim().length > 0;
+
+  const handleSave = async () => {
+    if (!isTitleValid) {
+      setSaveStatus("Please enter a title before saving.");
+      return;
+    }
+
+    try {
+      setIsSaving(true);
+      setSaveStatus("Saving...");
+
+      await onSave({
+        title: title.trim(),
+        abstract: abstract.trim(),
+        content,
+        visibility,
+      });
+
+      setSaveStatus("Saved successfully.");
+    } catch (error) {
+      console.error(error);
+      setSaveStatus("Save failed. Check console/backend logs.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm">
       <div className="mx-auto flex h-screen max-w-6xl flex-col bg-[#0b111a]">
         <header className="flex items-center justify-between border-b border-white/10 px-8 py-5">
           <div>
-            <p className="text-sm text-slate-400">
-              {paper ? "Edit Research Paper" : "New Research Paper"}
-            </p>
             <h2 className="text-xl font-semibold">Research Editor</h2>
+            {saveStatus && (
+              <p
+                className={`mt-1 text-sm ${
+                  saveStatus.includes("failed") ||
+                  saveStatus.includes("Please")
+                    ? "text-red-400"
+                    : "text-emerald-400"
+                }`}
+              >
+                {saveStatus}
+              </p>
+            )}
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex gap-3">
             <select
               value={visibility}
               onChange={(e) => setVisibility(e.target.value as PaperVisibility)}
-              className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm outline-none"
+              className="rounded-xl border border-white/10 bg-[#101823] px-4 py-2 text-sm"
+              disabled={isSaving}
             >
               <option value="PRIVATE">Private</option>
               <option value="SHARED">Shared</option>
@@ -419,84 +420,107 @@ function ResearchEditor({
 
             <button
               onClick={() => setPreview((prev) => !prev)}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm"
+              disabled={isSaving}
             >
               {preview ? "Write" : "Preview"}
             </button>
 
             <button
               onClick={onClose}
-              className="rounded-xl border border-white/10 px-4 py-2 text-sm hover:bg-white/5"
+              className="rounded-xl border border-white/10 px-4 py-2 text-sm"
+              disabled={isSaving}
             >
               Cancel
             </button>
 
             <button
-              onClick={() =>
-                onSave({
-                  title,
-                  abstract,
-                  content,
-                  visibility,
-                })
-              }
-              className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold hover:bg-indigo-500"
+              onClick={handleSave}
+              disabled={isSaving || !isTitleValid}
+              className="rounded-xl bg-indigo-600 px-5 py-2 text-sm font-semibold hover:bg-indigo-500 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Save Draft
+              {isSaving ? "Saving..." : "Save"}
             </button>
           </div>
         </header>
 
         <main className="flex-1 overflow-y-auto px-12 py-8">
           <div className="mx-auto max-w-4xl">
+            {!isTitleValid && (
+              <p className="mb-3 text-sm text-red-400">
+                Title is required to save this paper.
+              </p>
+            )}
+
             <input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => {
+                setTitle(e.target.value);
+                setSaveStatus("");
+              }}
               placeholder="Untitled Research Paper"
-              className="mb-6 w-full bg-transparent text-4xl font-bold outline-none placeholder:text-slate-600"
+              className="mb-6 w-full bg-transparent text-4xl font-bold outline-none"
+              disabled={isSaving}
             />
 
             <textarea
               value={abstract}
               onChange={(e) => setAbstract(e.target.value)}
-              placeholder="Write your abstract here..."
-              className="mb-6 min-h-28 w-full resize-none rounded-2xl border border-white/10 bg-[#101823] p-5 text-sm leading-7 outline-none placeholder:text-slate-500 focus:border-indigo-500"
+              placeholder="Write abstract..."
+              className="mb-6 min-h-28 w-full rounded-2xl border border-white/10 bg-[#101823] p-5"
+              disabled={isSaving}
             />
 
             <div className="mb-4 flex items-center justify-between text-sm text-slate-400">
               <div className="flex items-center gap-4">
                 <span>
-                  {visibility === "PRIVATE" && <Lock size={15} className="inline mr-1" />}
-                  {visibility === "SHARED" && <Users size={15} className="inline mr-1" />}
-                  {visibility === "PUBLIC" && <Globe size={15} className="inline mr-1" />}
+                  {visibility === "PRIVATE" && (
+                    <Lock size={15} className="mr-1 inline" />
+                  )}
+                  {visibility === "SHARED" && (
+                    <Users size={15} className="mr-1 inline" />
+                  )}
+                  {visibility === "PUBLIC" && (
+                    <Globe size={15} className="mr-1 inline" />
+                  )}
                   {visibility}
                 </span>
+
                 <span>{wordCount} words</span>
               </div>
 
-              <span>Markdown supported</span>
+              <span>Markdown + LaTeX supported</span>
             </div>
 
             {preview ? (
-              <div className="min-h-[500px] rounded-2xl border border-white/10 bg-[#101823] p-6 leading-8 text-slate-200">
-                {content || "Nothing to preview yet."}
+              <div className="prose prose-invert min-h-[500px] max-w-none rounded-2xl border border-white/10 bg-[#101823] p-6">
+                {content ? (
+                  <ReactMarkdown
+                    remarkPlugins={[remarkMath]}
+                    rehypePlugins={[rehypeKatex]}
+                  >
+                    {content}
+                  </ReactMarkdown>
+                ) : (
+                  <p>Nothing to preview.</p>
+                )}
               </div>
             ) : (
               <textarea
                 value={content}
                 onChange={(e) => setContent(e.target.value)}
-                placeholder={`Start writing your research paper...
+                disabled={isSaving}
+                placeholder={`## Introduction
 
-## Introduction
+Inline equation:
+$E = mc^2$
 
-## Methodology
+Block equation:
 
-## Results
-
-## Discussion
-
-## References`}
-                className="min-h-[520px] w-full resize-none rounded-2xl border border-white/10 bg-[#101823] p-6 font-mono text-sm leading-8 outline-none placeholder:text-slate-600 focus:border-indigo-500"
+$$
+F = G \\frac{m_1 m_2}{r^2}
+$$`}
+                className="min-h-[520px] w-full rounded-2xl border border-white/10 bg-[#101823] p-6 font-mono"
               />
             )}
           </div>
